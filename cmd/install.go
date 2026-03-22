@@ -45,7 +45,7 @@ func runEmbeddedScript(name string, args ...string) error {
 	defer os.Remove(tmp.Name())
 
 	if _, err := tmp.Write(data); err != nil {
-		return fmt.Errorf("스크립트 쓰기 실패: %v", err)
+		return fmt.Errorf("스크립트 쓰기 실패: %Wv", err)
 	}
 	tmp.Close()
 
