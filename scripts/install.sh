@@ -13,6 +13,8 @@ if [ -z "$DOMAIN" ]; then
   exit 1
 fi
 
+# NGINX_TEMP_CONF, NGINX_CONF 는 Go가 환경변수로 주입
+
 echo "=== nginx 설치 ==="
 apt update
 apt install -y nginx
@@ -22,7 +24,7 @@ iptables -I INPUT -p tcp --dport 80 -j ACCEPT
 iptables -I INPUT -p tcp --dport 443 -j ACCEPT
 
 echo "=== 임시 nginx.conf 적용 (80포트만) ==="
-cp /etc/cup/scripts/nginx.temp.conf /etc/nginx/nginx.conf
+cp "$NGINX_TEMP_CONF" /etc/nginx/nginx.conf
 sed -i "s/\$DOMAIN/$DOMAIN/g" /etc/nginx/nginx.conf
 
 echo "=== nginx 시작 ==="
@@ -36,7 +38,7 @@ echo "=== Let's Encrypt 인증서 발급 ==="
 certbot --nginx -d $DOMAIN
 
 echo "=== 최종 nginx.conf 적용 ==="
-cp /etc/cup/scripts/nginx.conf /etc/nginx/nginx.conf
+cp "$NGINX_CONF" /etc/nginx/nginx.conf
 sed -i "s/\$DOMAIN/$DOMAIN/g" /etc/nginx/nginx.conf
 systemctl reload nginx
 

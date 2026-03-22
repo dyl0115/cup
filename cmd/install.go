@@ -23,7 +23,27 @@ var installCmd = &cobra.Command{
 			return nil
 		}
 
-		if err := runEmbeddedScript("install.sh", domain); err != nil {
+		// conf 파일들을 임시파일로 추출
+		nginxTempConf, err := extractToTemp("nginx.temp.conf")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(nginxTempConf)
+
+		nginxConf, err := extractToTemp("nginx.conf")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(nginxConf)
+
+		// install.sh 실행 — conf 경로는 환경변수로 주입
+		if err := runEmbeddedScriptWithEnv("install.sh",
+			[]string{domain},
+			[]string{
+				"NGINX_TEMP_CONF=" + nginxTempConf,
+				"NGINX_CONF=" + nginxConf,
+			},
+		); err != nil {
 			return fmt.Errorf("설치 실패: %v", err)
 		}
 
@@ -32,30 +52,53 @@ var installCmd = &cobra.Command{
 	},
 }
 
-func runEmbeddedScript(name string, args ...string) error {
+// extractToTemp는 embed된 파일을 임시파일로 추출하고 경로를 반환한다.
+func extractToTemp(name string) (string, error) {
 	data, err := scripts.FS.ReadFile(name)
 	if err != nil {
-		return fmt.Errorf("스크립트 로드 실패 [%s]: %v", name, err)
+		return "", fmt.Errorf("파일 로드 실패 [%s]: %v", name, err)
 	}
 
-	tmp, err := os.CreateTemp("", "cup-*.sh")
+	tmp, err := os.CreateTemp("", "cup-*-"+name)
 	if err != nil {
-		return fmt.Errorf("임시파일 생성 실패: %v", err)
+		return "", fmt.Errorf("임시파일 생성 실패: %v", err)
 	}
-	defer os.Remove(tmp.Name())
 
 	if _, err := tmp.Write(data); err != nil {
-		return fmt.Errorf("스크립트 쓰기 실패: %Wv", err)
+		tmp.Close()
+		os.Remove(tmp.Name())
+		return "", fmt.Errorf("파일 쓰기 실패: %v", err)
 	}
 	tmp.Close()
 
 	if err := os.Chmod(tmp.Name(), 0755); err != nil {
-		return fmt.Errorf("chmod 실패: %v", err)
+		os.Remove(tmp.Name())
+		return "", fmt.Errorf("chmod 실패: %v", err)
 	}
 
-	cmdArgs := append([]string{tmp.Name()}, args...)
+	return tmp.Name(), nil
+}
+
+// runEmbeddedScript는 embed된 스크립트를 임시파일로 추출해서 실행한다.
+func runEmbeddedScript(name string, args ...string) error {
+	return runEmbeddedScriptWithEnv(name, args, nil)
+}
+
+// runEmbeddedScriptWithEnv는 환경변수를 추가로 주입해서 스크립트를 실행한다.
+func runEmbeddedScriptWithEnv(name string, args []string, env []string) error {
+	scriptPath, err := extractToTemp(name)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(scriptPath)
+
+	cmdArgs := append([]string{scriptPath}, args...)
 	c := exec.Command("bash", cmdArgs...)
 	c.Stdout = newPrefixWriter("  ")
 	c.Stderr = newPrefixWriter("  ")
+
+	// 기존 환경변수 유지 + 추가 환경변수 주입
+	c.Env = append(os.Environ(), env...)
+
 	return c.Run()
 }
