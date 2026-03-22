@@ -9,12 +9,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var installEmail string
+
 var installCmd = &cobra.Command{
 	Use:   "install <domain>",
 	Short: "nginx + HTTPS 세팅",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		domain := args[0]
+
+		if installEmail == "" {
+			return fmt.Errorf("이메일이 필요합니다. --email 플래그를 사용해주세요.\n예시: cup install %s --email your@email.com", domain)
+		}
 
 		fmt.Println("📦 nginx + HTTPS 설치 중...")
 
@@ -23,7 +29,6 @@ var installCmd = &cobra.Command{
 			return nil
 		}
 
-		// conf 파일들을 임시파일로 추출
 		nginxTempConf, err := extractToTemp("nginx.temp.conf")
 		if err != nil {
 			return err
@@ -36,9 +41,8 @@ var installCmd = &cobra.Command{
 		}
 		defer os.Remove(nginxConf)
 
-		// install.sh 실행 — conf 경로는 환경변수로 주입
 		if err := runEmbeddedScriptWithEnv("install.sh",
-			[]string{domain},
+			[]string{domain, installEmail},
 			[]string{
 				"NGINX_TEMP_CONF=" + nginxTempConf,
 				"NGINX_CONF=" + nginxConf,
@@ -50,6 +54,10 @@ var installCmd = &cobra.Command{
 		fmt.Printf("✅ 설치 완료! 도메인: %s\n", domain)
 		return nil
 	},
+}
+
+func init() {
+	installCmd.Flags().StringVarP(&installEmail, "email", "e", "", "Let's Encrypt 인증서 발급용 이메일 (필수)")
 }
 
 // extractToTemp는 embed된 파일을 임시파일로 추출하고 경로를 반환한다.
@@ -96,8 +104,6 @@ func runEmbeddedScriptWithEnv(name string, args []string, env []string) error {
 	c := exec.Command("bash", cmdArgs...)
 	c.Stdout = newPrefixWriter("  ")
 	c.Stderr = newPrefixWriter("  ")
-
-	// 기존 환경변수 유지 + 추가 환경변수 주입
 	c.Env = append(os.Environ(), env...)
 
 	return c.Run()

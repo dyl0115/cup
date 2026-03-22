@@ -8,12 +8,12 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 DOMAIN=${1:-""}
-if [ -z "$DOMAIN" ]; then
-  echo "사용법: cup install <도메인>"
+EMAIL=${2:-""}
+
+if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ]; then
+  echo "사용법: cup install <도메인> <이메일>"
   exit 1
 fi
-
-# NGINX_TEMP_CONF, NGINX_CONF 는 Go가 환경변수로 주입
 
 echo "=== nginx 설치 ==="
 apt update
@@ -35,7 +35,10 @@ echo "=== certbot 설치 ==="
 apt install -y certbot python3-certbot-nginx
 
 echo "=== Let's Encrypt 인증서 발급 ==="
-certbot --nginx -d $DOMAIN
+certbot --nginx -d $DOMAIN \
+  --non-interactive \
+  --agree-tos \
+  --email $EMAIL
 
 echo "=== 최종 nginx.conf 적용 ==="
 cp "$NGINX_CONF" /etc/nginx/nginx.conf
