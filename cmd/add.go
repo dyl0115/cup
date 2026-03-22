@@ -26,14 +26,12 @@ var addCmd = &cobra.Command{
 		var absDir string
 
 		if isGitHubURL(input) {
-			// GitHub URL이면 자동으로 clone
 			dir, err := cloneRepo(input)
 			if err != nil {
 				return err
 			}
 			absDir = dir
 		} else {
-			// 로컬 경로면 그대로 사용
 			dir, err := filepath.Abs(input)
 			if err != nil {
 				return fmt.Errorf("경로 변환 실패: %v", err)
@@ -75,7 +73,6 @@ func isGitHubURL(input string) bool {
 // cloneRepo는 GitHub URL을 /opt/cup-services/<레포명> 으로 clone한다.
 // 이미 존재하면 git pull로 업데이트한다.
 func cloneRepo(url string) (string, error) {
-	// URL에서 레포명 추출 (예: https://github.com/dyl0115/my-go-server → my-go-server)
 	repoName := extractRepoName(url)
 	if repoName == "" {
 		return "", fmt.Errorf("GitHub URL에서 레포명을 추출할 수 없습니다: %s", url)
@@ -90,6 +87,10 @@ func cloneRepo(url string) (string, error) {
 	if _, err := os.Stat(destDir); err == nil {
 		// 이미 존재하면 git pull
 		fmt.Printf("📦 [%s] 이미 존재함. git pull 중...\n", repoName)
+
+		// dubious ownership 에러 방지 (root로 실행 시 발생)
+		exec.Command("git", "config", "--global", "--add", "safe.directory", destDir).Run()
+
 		c := exec.Command("git", "-C", destDir, "pull")
 		c.Stdout = newPrefixWriter("  ")
 		c.Stderr = newPrefixWriter("  ")
@@ -111,18 +112,12 @@ func cloneRepo(url string) (string, error) {
 }
 
 // extractRepoName은 GitHub URL에서 레포명을 추출한다.
-// https://github.com/dyl0115/my-go-server     → my-go-server
-// https://github.com/dyl0115/my-go-server.git → my-go-server
-// git@github.com:dyl0115/my-go-server.git     → my-go-server
 func extractRepoName(url string) string {
-	// .git 제거
 	url = strings.TrimSuffix(url, ".git")
-	// 마지막 / 이후가 레포명
 	parts := strings.Split(url, "/")
 	if len(parts) == 0 {
 		return ""
 	}
-	// git@github.com:dyl0115/my-go-server 형태 처리
 	last := parts[len(parts)-1]
 	if colonIdx := strings.LastIndex(last, ":"); colonIdx != -1 {
 		last = last[colonIdx+1:]
