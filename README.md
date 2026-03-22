@@ -16,7 +16,7 @@ sudo mv cup /usr/local/bin/
 
 ```bash
 # 프록시 서버 초기 설치 (최초 1회)
-cup install dymcp.duckdns.org
+sudo cup install your.domain.org
 
 # 서비스 등록 (해당 프로젝트 디렉토리에서)
 cup add /home/ubuntu/my-go-server
