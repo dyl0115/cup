@@ -2,48 +2,60 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+
+	"github.com/dyl0115/cup/scripts"
+	"github.com/spf13/cobra"
 )
 
-const proxyDir = "/opt/dy-proxy-server"
+var installCmd = &cobra.Command{
+	Use:   "install <domain>",
+	Short: "nginx + HTTPS 세팅",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		domain := args[0]
 
-func Install(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("사용법: cup install <domain>")
-	}
-	domain := args[0]
+		fmt.Println("📦 nginx + HTTPS 설치 중...")
 
-	fmt.Println("📦 dy-proxy-server 설치 중...")
+		if _, err := exec.LookPath("nginx"); err == nil {
+			fmt.Println("✅ nginx 이미 설치되어 있음. 스킵.")
+			return nil
+		}
 
-	// 이미 설치되어 있으면 스킵
-	if _, err := exec.LookPath("nginx"); err == nil {
-		fmt.Println("✅ nginx 이미 설치되어 있음. 스킵.")
+		if err := runEmbeddedScript("install.sh", domain); err != nil {
+			return fmt.Errorf("설치 실패: %v", err)
+		}
+
+		fmt.Printf("✅ 설치 완료! 도메인: %s\n", domain)
 		return nil
+	},
+}
+
+func runEmbeddedScript(name string, args ...string) error {
+	data, err := scripts.FS.ReadFile(name)
+	if err != nil {
+		return fmt.Errorf("스크립트 로드 실패 [%s]: %v", name, err)
 	}
 
-	// dy-proxy-server 클론
-	clone := exec.Command("bash", "-c",
-		fmt.Sprintf("git clone https://github.com/dyl0115/dy-proxy-server.git %s", proxyDir))
-	clone.Stdout = newPrefixWriter("  ")
-	clone.Stderr = newPrefixWriter("  ")
-	if err := clone.Run(); err != nil {
-		return fmt.Errorf("레포 클론 실패: %v", err)
+	tmp, err := os.CreateTemp("", "cup-*.sh")
+	if err != nil {
+		return fmt.Errorf("임시파일 생성 실패: %v", err)
 	}
+	defer os.Remove(tmp.Name())
 
-	// 실행 권한 부여
-	chmod := exec.Command("bash", "-c", fmt.Sprintf("chmod +x %s/*.sh", proxyDir))
-	if err := chmod.Run(); err != nil {
+	if _, err := tmp.Write(data); err != nil {
+		return fmt.Errorf("스크립트 쓰기 실패: %v", err)
+	}
+	tmp.Close()
+
+	if err := os.Chmod(tmp.Name(), 0755); err != nil {
 		return fmt.Errorf("chmod 실패: %v", err)
 	}
 
-	// install.sh 실행
-	install := exec.Command("bash", fmt.Sprintf("%s/install.sh", proxyDir), domain)
-	install.Stdout = newPrefixWriter("  ")
-	install.Stderr = newPrefixWriter("  ")
-	if err := install.Run(); err != nil {
-		return fmt.Errorf("install.sh 실패: %v", err)
-	}
-
-	fmt.Printf("✅ 설치 완료! 도메인: %s\n", domain)
-	return nil
+	cmdArgs := append([]string{tmp.Name()}, args...)
+	c := exec.Command("bash", cmdArgs...)
+	c.Stdout = newPrefixWriter("  ")
+	c.Stderr = newPrefixWriter("  ")
+	return c.Run()
 }
