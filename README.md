@@ -26,13 +26,21 @@ sudo cup install dymcp.duckdns.org -e your@email.com
 
 ### 서비스 등록
 
-```bash
-# 해당 프로젝트 디렉토리에서 (cupFile.yaml이 있어야 함)
-cup add /home/ubuntu/my-go-server
+GitHub URL을 바로 넘기면 clone부터 등록까지 자동으로 처리한다.
 
-# 현재 디렉토리에서 실행할 경우
+```bash
+# GitHub URL로 바로 등록 (권장)
+cup add https://github.com/dyl0115/my-go-server
+
+# 이미 clone된 레포라면 git pull 후 등록
+cup add https://github.com/dyl0115/my-go-server
+
+# 로컬 경로로도 가능
+cup add /home/ubuntu/my-go-server
 cup add .
 ```
+
+GitHub URL로 실행하면 `/opt/cup-services/<레포명>` 에 자동으로 clone된다.
 
 ### 서비스 관리
 
@@ -119,6 +127,6 @@ INIT:
 
 ```
 /etc/cup/registry/
-├── my-go-server       # 내용: "/home/ubuntu/my-go-server"
-└── my-spring-server   # 내용: "/home/ubuntu/my-spring-server"
+├── my-go-server       # 내용: "/opt/cup-services/my-go-server"
+└── my-spring-server   # 내용: "/opt/cup-services/my-spring-server"
 ```

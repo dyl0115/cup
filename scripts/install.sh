@@ -46,3 +46,5 @@ sed -i "s/\$DOMAIN/$DOMAIN/g" /etc/nginx/nginx.conf
 systemctl reload nginx
 
 echo "=== 완료! ==="
+
+# TODO: 현재 Nginx는 관리가 안되는듯. 서버가 죽으면 nginx도 죽고 다시 실행이 안됨.
