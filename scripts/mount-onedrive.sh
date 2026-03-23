@@ -23,6 +23,14 @@ else
   apt install -y rclone
 fi
 
+echo "=== /etc/fuse.conf에 user_allow_other 설정 ==="
+if ! grep -q "^user_allow_other" /etc/fuse.conf; then
+  echo "user_allow_other" >> /etc/fuse.conf
+  echo "user_allow_other 추가 완료."
+else
+  echo "user_allow_other 이미 설정되어 있음. 스킵."
+fi
+
 # 이미 마운트 중이면 재시작만 하고 종료
 if systemctl is-active --quiet rclone-onedrive; then
   echo "✅ OneDrive 이미 마운트 중. 재시작합니다..."
@@ -75,8 +83,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=rclone mount onedrive: $MOUNT_PATH --vfs-cache-mode writes --allow-non-empty
-ExecStop=/bin/fusermount -u $MOUNT_PATH
+ExecStart=rclone mount onedrive: $MOUNT_PATH --vfs-cache-mode writes --allow-non-empty --allow-otherExecStop=/bin/fusermount -u $MOUNT_PATH
 Restart=on-failure
 RestartSec=5
 
