@@ -28,4 +28,5 @@ func init() {
 	rootCmd.AddCommand(restartCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(mountCmd)
 }

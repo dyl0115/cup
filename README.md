@@ -120,6 +120,24 @@ INIT:
   run: ssh server "cup restart my-go-server"
 ```
 
+### 클라우드 스토리지 마운트
+
+`cup mount`로 클라우드 스토리지를 서버에 마운트한다. nginx/서비스 관리와 별개로 동작.
+
+```bash
+# 토큰 발급 (로컬 PC에서 먼저 실행)
+rclone authorize "onedrive"
+# → 브라우저 로그인 후 터미널에 JSON 토큰 출력
+
+# OneDrive 마운트 (기본 경로: /root/onedrive)
+sudo cup mount add onedrive '<token_json>'
+
+# 마운트 경로 직접 지정
+sudo cup mount add onedrive '<token_json>' --path /root/myonedrive
+```
+
+내부적으로 rclone + systemd 서비스로 등록되어 서버 재시작 시 자동 마운트된다.
+
 ## registry
 
 `cup add` 시 서비스 경로를 `/etc/cup/registry/<id>` 에 저장.  
