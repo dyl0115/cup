@@ -23,12 +23,31 @@ else
   apt install -y rclone
 fi
 
-echo "=== rclone.conf 생성 ==="
+echo "=== 임시 rclone.conf 생성 (drive_id 조회용) ==="
 mkdir -p ~/.config/rclone
 cat > ~/.config/rclone/rclone.conf << EOF
 [onedrive]
 type = onedrive
 token = $ONEDRIVE_TOKEN
+EOF
+
+echo "=== drive_id 자동 조회 ==="
+DRIVES_JSON=$(rclone backend drives onedrive: 2>/dev/null)
+DRIVE_ID=$(echo "$DRIVES_JSON" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+if [ -z "$DRIVE_ID" ]; then
+  echo "❌ drive_id 조회 실패. 토큰이 올바른지 확인해주세요."
+  exit 1
+fi
+
+echo "✅ drive_id 조회 완료: $DRIVE_ID"
+
+echo "=== 최종 rclone.conf 생성 ==="
+cat > ~/.config/rclone/rclone.conf << EOF
+[onedrive]
+type = onedrive
+token = $ONEDRIVE_TOKEN
+drive_id = $DRIVE_ID
 drive_type = personal
 EOF
 
