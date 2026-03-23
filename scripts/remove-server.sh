@@ -16,7 +16,7 @@ fi
 
 NGINX_CONF="/etc/nginx/nginx.conf"
 
-sed -i "/location $NGINX_PATH/,/}/d" $NGINX_CONF
+sed -i "\|location $NGINX_PATH|,\|/}|d" $NGINX_CONF
 
 systemctl reload nginx
 
