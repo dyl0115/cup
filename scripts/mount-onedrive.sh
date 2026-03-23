@@ -48,12 +48,10 @@ token = $ONEDRIVE_TOKEN
 EOF
 
 echo "=== drive_id 자동 조회 (Microsoft Graph API) ==="
-ACCESS_TOKEN=$(echo "$ONEDRIVE_TOKEN" | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4)
-DRIVE_ID=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" "https://graph.microsoft.com/v1.0/me/drive" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-
-echo "=== drive_id 자동 조회 ==="
-DRIVES_JSON=$(rclone backend drives onedrive: 2>/dev/null)
-DRIVE_ID=$(echo "$DRIVES_JSON" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+printf '%s' "$ONEDRIVE_TOKEN" > /tmp/onedrive_token.json
+ACCESS_TOKEN=$(python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])" < /tmp/onedrive_token.json)
+DRIVE_ID=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" "https://graph.microsoft.com/v1.0/me/drive" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+rm -f /tmp/onedrive_token.json
 
 if [ -z "$DRIVE_ID" ]; then
   echo "❌ drive_id 조회 실패. 토큰이 올바른지 확인해주세요."
@@ -83,7 +81,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=rclone mount onedrive: $MOUNT_PATH --vfs-cache-mode writes --allow-non-empty --allow-otherExecStop=/bin/fusermount -u $MOUNT_PATH
+ExecStart=rclone mount onedrive: $MOUNT_PATH --vfs-cache-mode writes --allow-non-empty --allow-other
+ExecStop=/bin/fusermount -u $MOUNT_PATH
 Restart=on-failure
 RestartSec=5
 
