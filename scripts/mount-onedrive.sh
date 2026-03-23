@@ -23,13 +23,25 @@ else
   apt install -y rclone
 fi
 
-echo "=== 임시 rclone.conf 생성 (drive_id 조회용) ==="
+# 이미 마운트 중이면 재시작만 하고 종료
+if systemctl is-active --quiet rclone-onedrive; then
+  echo "✅ OneDrive 이미 마운트 중. 재시작합니다..."
+  systemctl restart rclone-onedrive
+  echo "✅ 재시작 완료! (경로: $MOUNT_PATH)"
+  exit 0
+fi
+
+echo "=== 임시 rclone.conf 생성 ==="
 mkdir -p ~/.config/rclone
 cat > ~/.config/rclone/rclone.conf << EOF
 [onedrive]
 type = onedrive
 token = $ONEDRIVE_TOKEN
 EOF
+
+echo "=== drive_id 자동 조회 (Microsoft Graph API) ==="
+ACCESS_TOKEN=$(echo "$ONEDRIVE_TOKEN" | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4)
+DRIVE_ID=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" "https://graph.microsoft.com/v1.0/me/drive" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
 
 echo "=== drive_id 자동 조회 ==="
 DRIVES_JSON=$(rclone backend drives onedrive: 2>/dev/null)
